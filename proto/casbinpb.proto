@@ -1,0 +1,68 @@
+syntax = "proto3";
+package casbinpb;
+
+import "eraftpb.proto";
+
+// The Casbin service definition.
+service CasbinService {
+  rpc Ping(PingRequest) returns (PingReply);
+
+  rpc AddPolicy(PolicyRequest) returns (Empty) {};
+
+  rpc RemovePolicy(PolicyRequest) returns (Empty) {};
+
+  rpc Raft(RaftRequest) returns (RaftReply);
+
+  rpc Join(JoinRequest) returns (ResultReply);
+}
+
+enum ResultCode {
+  SUCCESS = 0;
+  FAILURE = 1;
+  NO_RESULTS = 2;
+  UNKNOWNNNNN = 3;
+  MAGIC_UNICORN = 4;
+}
+
+enum RaftRequestType {
+  JOIN = 0;
+  LEAVE = 1;
+  ADD = 2;
+  DELETE = 3;
+  COMMIT = 4;
+  CONF_CHANGE = 5;
+  PING = 6;
+}
+
+message JoinRequest {
+  uint64 id = 1;
+  string host = 2;
+}
+
+message RaftRequest {
+  RaftRequestType tpe = 1;
+  bytes message = 2;
+}
+
+message RaftReply { ResultCode code = 1; }
+
+message ResultReply {
+  ResultCode code = 1;
+  string message = 2;
+}
+
+message PingReply { string status = 1; }
+
+message PingRequest {}
+
+message PolicyRequest {
+  string op = 1;
+  string pType = 2;
+  repeated string params = 3;
+}
+
+message Empty {};
+
+message InternalRaftMessage {
+    PolicyRequest policy = 1;
+}
