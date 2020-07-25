@@ -7,3 +7,23 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait  = "^0.1"
+bytes        = "^0.5"
+casbin       = { version = "1.1.2", default-features = false, features = [ "incremental", "runtime-tokio" ] }
+dashmap      = "^3"
+http         = "^0.2"
+prost        = "^0.6"
+prost-types  = "^0.6"
+prost-derive = "^0.6"
+raft         = { git = "https://github.com/tikv/raft-rs", default-features = false, features = ["prost-codec"] }
+serde        = { version = "^1.0", features = ["derive"] }
+sled         = "^0.34"
+slog         = "^2.5"
+slog-async   = "2.5"
+slog-term    = "^2.6"
+thiserror    = "^1.0"
+tokio        = { version = "^0.2", features = ["full", "parking_lot"]}
+tonic        = "^0.3"
+
+[build-dependencies]
+tonic-build       = "^0.3"
