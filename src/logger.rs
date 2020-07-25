@@ -30,7 +30,7 @@ pub fn create_logger(id: u64, log_level: String) -> Logger {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = LevelFilter {
-        drain: drain,
+        drain,
         level: log_level,
     }
     .fuse();
@@ -39,8 +39,7 @@ pub fn create_logger(id: u64, log_level: String) -> Logger {
         .overflow_strategy(slog_async::OverflowStrategy::Block)
         .build()
         .fuse();
-    let logger = slog::Logger::root(drain, o!("tag" => format!("[{}]", id)));
-    logger
+    slog::Logger::root(drain, o!("tag" => format!("[{}]", id)))
 }
 
 fn level_filter(log_level: &str) -> Level {
