@@ -37,7 +37,6 @@ impl CasbinRaft {
     pub fn new(
         id: u64,
         cfg: Config,
-        mut base_path: String,
         logger: Logger,
         peers: Arc<DashMap<u64, RpcClient>>,
         mailbox_sender: Sender<cluster::Message>,
@@ -45,11 +44,6 @@ impl CasbinRaft {
         enforcer: Arc<RwLock<Enforcer>>,
     ) -> Result<Self, crate::Error> {
         cfg.validate()?;
-
-        assert!(!base_path.is_empty());
-        if base_path.ends_with('/') {
-            base_path.pop();
-        }
 
         let storage = MemStorage::new();
         let node = RawNode::new(&cfg, storage, &logger)?;
