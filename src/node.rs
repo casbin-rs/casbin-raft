@@ -15,7 +15,7 @@ use tokio::sync::RwLock;
 use tokio::time::*;
 use tonic::Request;
 
-use crate::cluster::{self, InternalRaftMessage, RaftRequest};
+use crate::cluster::{self, InternalRaftMessage, PolicyRequestType, RaftRequest};
 use crate::network::{create_client, RpcClient};
 use crate::storage::{MemStorage, Storage};
 
@@ -283,9 +283,9 @@ impl CasbinRaft {
         request: InternalRaftMessage,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(policy_request) = request.policy {
-            let op = policy_request.op;
+            let op = PolicyRequestType::from_i32(policy_request.op);
             match op {
-                0 => {
+                Some(PolicyRequestType::AddPolicy) => {
                     let cloned_enforcer = self.enforcer.clone();
                     let p_type = "p".to_string();
                     let policy = policy_request.params;
@@ -294,7 +294,7 @@ impl CasbinRaft {
                         lock.add_named_policy(&p_type, policy).await.unwrap();
                     });
                 }
-                1 => {
+                Some(PolicyRequestType::RemovePolicy) => {
                     let cloned_enforcer = self.enforcer.clone();
                     let policy = policy_request.params;
                     Box::pin(async move {
@@ -302,7 +302,7 @@ impl CasbinRaft {
                         lock.remove_policy(policy).await.unwrap();
                     });
                 }
-                _ => panic!(":-("),
+                None => panic!(":-("),
             }
         }
 
