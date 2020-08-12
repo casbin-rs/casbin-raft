@@ -25,9 +25,7 @@ pub async fn create_from_managed<M: TryIntoModel, A: TryIntoAdapter>(
     m: M,
     a: A,
 ) -> Result<Enforcer, Error> {
-    Enforcer::new(m, a)
-        .await
-        .map_err(|e| Error::CasbinError(e))
+    Enforcer::new(m, a).await.map_err(|e| Error::CasbinError(e))
 }
 
 pub async fn create_client(
