@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use casbin::prelude::{Enforcer, MgmtApi};
+use casbin::prelude::{CoreApi, Enforcer, MgmtApi};
 use dashmap::DashMap;
 use http::Uri;
 use prost::Message;
@@ -285,21 +285,47 @@ impl CasbinRaft {
         if let Some(policy_request) = request.policy {
             let op = PolicyRequestType::from_i32(policy_request.op);
             match op {
-                Some(PolicyRequestType::AddPolicy) => {
+                Some(PolicyRequestType::AddPolicies) => {
                     let cloned_enforcer = self.enforcer.clone();
                     let p_type = "p".to_string();
-                    let policy = policy_request.params;
+                    let policy = policy_request
+                        .paramss
+                        .into_iter()
+                        .map(|x| x.param)
+                        .collect();
                     Box::pin(async move {
                         let mut lock = cloned_enforcer.write().await;
-                        lock.add_named_policy(&p_type, policy).await.unwrap();
+                        lock.add_named_policies(&p_type, policy).await.unwrap();
                     });
                 }
-                Some(PolicyRequestType::RemovePolicy) => {
+                Some(PolicyRequestType::RemovePolicies) => {
                     let cloned_enforcer = self.enforcer.clone();
-                    let policy = policy_request.params;
+                    let policy = policy_request
+                        .paramss
+                        .into_iter()
+                        .map(|x| x.param)
+                        .collect();
                     Box::pin(async move {
                         let mut lock = cloned_enforcer.write().await;
-                        lock.remove_policy(policy).await.unwrap();
+                        lock.remove_policies(policy).await.unwrap();
+                    });
+                }
+                Some(PolicyRequestType::RemoveFilteredPolicy) => {
+                    let cloned_enforcer = self.enforcer.clone();
+                    let field_index = policy_request.field_index;
+                    let field_values = policy_request.field_values;
+                    Box::pin(async move {
+                        let mut lock = cloned_enforcer.write().await;
+                        lock.remove_filtered_policy(field_index as usize, field_values)
+                            .await
+                            .unwrap();
+                    });
+                }
+                Some(PolicyRequestType::ClearPolicy) => {
+                    let cloned_enforcer = self.enforcer.clone();
+                    Box::pin(async move {
+                        let mut lock = cloned_enforcer.write().await;
+                        lock.clear_policy();
                     });
                 }
                 None => panic!(":-("),

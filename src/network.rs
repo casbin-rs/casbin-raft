@@ -126,31 +126,71 @@ impl server::CasbinService for RpcServer {
         Ok(response)
     }
 
-    async fn add_policy(
+    async fn add_policies(
         &self,
         request: Request<PolicyRequest>,
     ) -> Result<Response<Empty>, Status> {
         let cloned_enforcer = self.enforcer.clone();
         let cloned_request = request.into_inner();
         let p_type = "p".to_string();
-        let policy = cloned_request.params;
+        let policy = cloned_request
+            .paramss
+            .into_iter()
+            .map(|x| x.param)
+            .collect();
         Box::pin(async move {
             let mut lock = cloned_enforcer.write().await;
-            lock.add_named_policy(&p_type, policy).await.unwrap();
+            lock.add_named_policies(&p_type, policy).await.unwrap();
         });
         let reply = Empty {};
         Ok(Response::new(reply))
     }
 
-    async fn remove_policy(
+    async fn remove_policies(
         &self,
         request: Request<PolicyRequest>,
     ) -> Result<Response<Empty>, Status> {
         let cloned_enforcer = self.enforcer.clone();
-        let policy = request.into_inner().params;
+        let policy = request
+            .into_inner()
+            .paramss
+            .into_iter()
+            .map(|x| x.param)
+            .collect();
         Box::pin(async move {
             let mut lock = cloned_enforcer.write().await;
-            lock.remove_policy(policy).await.unwrap();
+            lock.remove_policies(policy).await.unwrap();
+        });
+        let reply = Empty {};
+        Ok(Response::new(reply))
+    }
+
+    async fn remove_filtered_policy(
+        &self,
+        request: Request<PolicyRequest>,
+    ) -> Result<Response<Empty>, Status> {
+        let cloned_enforcer = self.enforcer.clone();
+        let policy_request = request.into_inner();
+        let field_index = policy_request.field_index;
+        let field_values = policy_request.field_values;
+        Box::pin(async move {
+            let mut lock = cloned_enforcer.write().await;
+            lock.remove_filtered_policy(field_index as usize, field_values)
+                .await
+                .unwrap();
+        });
+        let reply = Empty {};
+        Ok(Response::new(reply))
+    }
+
+    async fn clear_policy(
+        &self,
+        _request: Request<PolicyRequest>,
+    ) -> Result<Response<Empty>, Status> {
+        let cloned_enforcer = self.enforcer.clone();
+        Box::pin(async move {
+            let mut lock = cloned_enforcer.write().await;
+            lock.clear_policy();
         });
         let reply = Empty {};
         Ok(Response::new(reply))
