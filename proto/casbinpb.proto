@@ -55,8 +55,13 @@ message PingReply { string status = 1; }
 
 message PingRequest {}
 
+enum PolicyRequestType {
+  ADD_POLICY = 0;
+  REMOVE_POLICY = 1;
+}
+
 message PolicyRequest {
-  string op = 1;
+  PolicyRequestType op = 1;
   string pType = 2;
   repeated string params = 3;
 }

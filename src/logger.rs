@@ -1,4 +1,3 @@
-use crate::utils;
 use slog::{Drain, Level, Logger};
 
 struct LevelFilter<D> {
@@ -43,8 +42,7 @@ pub fn create_logger(id: u64, log_level: String) -> Logger {
 }
 
 fn level_filter(log_level: &str) -> Level {
-    let log_level = utils::string_to_static_str(log_level.to_lowercase());
-    match log_level {
+    match &*log_level.to_lowercase() {
         "debug" => Level::Debug,
         "info" => Level::Info,
         "warn" => Level::Warning,

@@ -18,7 +18,6 @@ use tonic::Request;
 use crate::cluster::{self, InternalRaftMessage, RaftRequest};
 use crate::network::{create_client, RpcClient};
 use crate::storage::{MemStorage, Storage};
-use crate::utils;
 
 pub struct CasbinRaft {
     pub id: u64,
@@ -282,10 +281,9 @@ impl CasbinRaft {
 
     pub fn apply(&mut self, request: InternalRaftMessage) -> Result<(), crate::Error> {
         if let Some(policy_request) = request.policy {
-            let op = utils::string_to_static_str(policy_request.op.to_lowercase());
-            // self.db.insert(put.key, put.value)?;
+            let op = policy_request.op;
             match op {
-                "add" => {
+                0 => {
                     let cloned_enforcer = self.enforcer.clone();
                     let p_type = "p".to_string();
                     let policy = policy_request.params;
@@ -294,7 +292,7 @@ impl CasbinRaft {
                         lock.add_named_policy(&p_type, policy).await.unwrap();
                     });
                 }
-                "remove" => {
+                1 => {
                     let cloned_enforcer = self.enforcer.clone();
                     let policy = policy_request.params;
                     Box::pin(async move {
