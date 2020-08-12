@@ -41,7 +41,7 @@ impl CasbinRaft {
         mailbox_sender: Sender<cluster::Message>,
         mailbox_recv: Receiver<cluster::Message>,
         enforcer: Arc<RwLock<Enforcer>>,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, crate::StorageError> {
         cfg.validate()?;
 
         let storage = MemStorage::new();
@@ -80,11 +80,7 @@ impl CasbinRaft {
         self.node.raft.become_leader();
     }
 
-    fn set_hard_state(
-        &mut self,
-        commit: u64,
-        term: u64,
-    ) -> Result<(), crate::error::Error> {
+    fn set_hard_state(&mut self, commit: u64, term: u64) -> Result<(), raft::Error> {
         self.node.raft.mut_store().set_hard_state(commit, term);
         Ok(())
     }
@@ -241,7 +237,10 @@ impl CasbinRaft {
         Ok(self.node.propose(ctx, entry)?)
     }
 
-    pub async fn send(&mut self, msg: cluster::Message) -> Result<(), crate::Error> {
+    pub async fn send(
+        &mut self,
+        msg: cluster::Message,
+    ) -> Result<(), crate::StorageError> {
         slog::info!(self.logger, "SEND = {:?}", msg);
         self.mailbox_sender.send(msg).await.unwrap();
         Ok(())
@@ -250,7 +249,7 @@ impl CasbinRaft {
     pub async fn append_entries(
         &mut self,
         entries: &[Entry],
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), crate::StorageError> {
         for entry in entries {
             if entry.data.is_empty() {
                 continue;
@@ -279,7 +278,10 @@ impl CasbinRaft {
         Ok(())
     }
 
-    pub fn apply(&mut self, request: InternalRaftMessage) -> Result<(), crate::Error> {
+    pub fn apply(
+        &mut self,
+        request: InternalRaftMessage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(policy_request) = request.policy {
             let op = policy_request.op;
             match op {

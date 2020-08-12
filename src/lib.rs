@@ -8,4 +8,4 @@ pub mod network;
 pub mod node;
 pub mod storage;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub type StorageError = Box<dyn std::error::Error + Send + Sync + 'static>;
