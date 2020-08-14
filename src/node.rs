@@ -285,9 +285,24 @@ impl CasbinRaft {
         if let Some(policy_request) = request.policy {
             let op = PolicyRequestType::from_i32(policy_request.op);
             match op {
+                Some(PolicyRequestType::AddPolicy) => {
+                    let cloned_enforcer = self.enforcer.clone();
+                    let policy = policy_request.params;
+                    Box::pin(async move {
+                        let mut lock = cloned_enforcer.write().await;
+                        lock.add_policy(policy).await.unwrap();
+                    });
+                }
+                Some(PolicyRequestType::RemovePolicy) => {
+                    let cloned_enforcer = self.enforcer.clone();
+                    let policy = policy_request.params;
+                    Box::pin(async move {
+                        let mut lock = cloned_enforcer.write().await;
+                        lock.remove_policy(policy).await.unwrap();
+                    });
+                }
                 Some(PolicyRequestType::AddPolicies) => {
                     let cloned_enforcer = self.enforcer.clone();
-                    let p_type = "p".to_string();
                     let policy = policy_request
                         .paramss
                         .into_iter()
@@ -295,7 +310,7 @@ impl CasbinRaft {
                         .collect();
                     Box::pin(async move {
                         let mut lock = cloned_enforcer.write().await;
-                        lock.add_named_policies(&p_type, policy).await.unwrap();
+                        lock.add_policies(policy).await.unwrap();
                     });
                 }
                 Some(PolicyRequestType::RemovePolicies) => {
