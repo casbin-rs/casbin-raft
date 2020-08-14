@@ -5,7 +5,7 @@ use bytes::Bytes;
 use http::Uri;
 use slog::Logger;
 
-use casbin::prelude::{CoreApi, Enforcer, MgmtApi, TryIntoAdapter, TryIntoModel};
+use casbin::prelude::{CoreApi, Enforcer, MgmtApi};
 
 use prost::Message;
 
@@ -17,16 +17,8 @@ use tonic::{Code, Request, Response, Status};
 
 use crate::cluster;
 use crate::cluster::*;
-use crate::error::Error;
 
 pub type RpcClient = client::CasbinServiceClient<Channel>;
-
-pub async fn create_from_managed<M: TryIntoModel, A: TryIntoAdapter>(
-    m: M,
-    a: A,
-) -> Result<Enforcer, Error> {
-    Enforcer::new(m, a).await.map_err(Error::CasbinError)
-}
 
 pub async fn create_client(
     uri: Uri,
