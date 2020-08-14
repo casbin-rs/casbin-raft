@@ -7,6 +7,10 @@ import "eraftpb.proto";
 service CasbinService {
   rpc Ping(PingRequest) returns (PingReply);
 
+  rpc AddPolicy(PolicyRequest) returns (Empty) {};
+
+  rpc RemovePolicy(PolicyRequest) returns (Empty) {};
+
   rpc AddPolicies(PolicyRequest) returns (Empty) {};
 
   rpc RemovePolicies(PolicyRequest) returns (Empty) {};
@@ -60,21 +64,24 @@ message PingReply { string status = 1; }
 message PingRequest {}
 
 enum PolicyRequestType {
-  ADD_POLICIES = 0;
-  REMOVE_POLICIES = 1;
-  REMOVE_FILTERED_POLICY = 2;
-  CLEAR_POLICY = 3;
+  ADD_POLICY = 0;
+  REMOVE_POLICY = 1;
+  ADD_POLICIES = 2;
+  REMOVE_POLICIES = 3;
+  REMOVE_FILTERED_POLICY = 4;
+  CLEAR_POLICY = 5;
 }
 
 message PolicyRequest {
   PolicyRequestType op = 1;
   string pType = 2;
-  message params {
+  repeated string params = 3;
+  message subparams {
     repeated string param = 1;
   }
-  repeated params paramss = 3;
-  int32 fieldIndex = 4;
-  repeated string fieldValues = 5;
+  repeated subparams paramss = 4;
+  int32 fieldIndex = 5;
+  repeated string fieldValues = 6;
 }
 
 message Empty {};
