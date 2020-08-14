@@ -2,6 +2,7 @@ use casbin::Error as CasbinErrors;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
+use tonic::{Code, Status};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -49,6 +50,24 @@ impl From<std::io::Error> for Error {
 impl From<slog::Error> for Error {
     fn from(e: slog::Error) -> Self {
         Error::IOError(e.to_string())
+    }
+}
+
+impl From<Error> for tonic::Status {
+    fn from(e: Error) -> Self {
+        Status::new(Code::Internal, format!("{:?}", e))
+    }
+}
+
+impl From<tonic::Status> for Error {
+    fn from(s: tonic::Status) -> Self {
+        Error::RPCError(s.to_string())
+    }
+}
+
+impl From<tonic::transport::Error> for Error {
+    fn from(e: tonic::transport::Error) -> Self {
+        Error::RPCError(e.to_string())
     }
 }
 
