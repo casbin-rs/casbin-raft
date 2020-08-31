@@ -177,8 +177,6 @@ impl CasbinRaft {
         if let Some(hs) = ready.hs() {
             slog::info!(self.logger, "HS?: {:?}", hs);
             self.node.mut_store().set_hard_state(hs.commit, hs.term);
-            // self.node.mut_store().state.hard_state = (*hs).clone();
-            // self.node.mut_store().commit()?;
         }
 
         for mut msg in ready.messages.drain(..) {
@@ -340,7 +338,7 @@ impl CasbinRaft {
                     let cloned_enforcer = self.enforcer.clone();
                     Box::pin(async move {
                         let mut lock = cloned_enforcer.write().await;
-                        lock.clear_policy();
+                        lock.clear_policy().await.unwrap();
                     });
                 }
                 None => panic!(":-("),

@@ -211,7 +211,7 @@ impl server::CasbinService for RpcServer {
         let cloned_enforcer = self.enforcer.clone();
         Box::pin(async move {
             let mut lock = cloned_enforcer.write().await;
-            lock.clear_policy();
+            lock.clear_policy().await.unwrap();
         });
         let reply = Empty {};
         Ok(Response::new(reply))
