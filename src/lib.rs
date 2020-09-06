@@ -7,5 +7,6 @@ pub mod logger;
 pub mod network;
 pub mod node;
 pub mod storage;
+pub mod types;
 
 pub type StorageError = Box<dyn std::error::Error + Send + Sync + 'static>;

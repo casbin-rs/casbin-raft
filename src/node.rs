@@ -1,25 +1,27 @@
-use std::convert::TryFrom;
+use std::collections::HashMap;
+use std::fmt::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use casbin::prelude::{CoreApi, Enforcer, MgmtApi};
-use dashmap::DashMap;
-use http::Uri;
 use prost::Message;
 use raft::prelude::*;
 use raft::{Config, RawNode};
 use slog::Logger;
 use tokio::sync::mpsc::*;
-use tokio::sync::RwLock;
 use tokio::time::*;
+use tonic::transport::ClientTlsConfig;
 use tonic::Request;
 
 use crate::cluster::{self, InternalRaftMessage, PolicyRequestType, RaftRequest};
 use crate::network::{create_client, RpcClient};
 use crate::storage::{MemStorage, Storage};
+use crate::types::*;
 
-pub struct CasbinRaft {
+pub struct CasbinRaft<D>
+where
+    D: DispatcherHandle,
+{
     pub id: u64,
     pub node: RawNode<MemStorage>,
     pub logger: Logger,
@@ -27,20 +29,23 @@ pub struct CasbinRaft {
     pub mailbox_recv: Receiver<cluster::Message>,
     pub conf_sender: Sender<ConfChange>,
     pub conf_recv: Receiver<ConfChange>,
-    pub peers: Arc<DashMap<u64, RpcClient>>,
+    pub peers: HashMap<u64, RpcClient>,
     pub heartbeat: usize,
-    pub enforcer: Arc<RwLock<Enforcer>>,
+    pub dispatcher: Arc<D>,
 }
 
-impl CasbinRaft {
+impl<D> CasbinRaft<D>
+where
+    D: DispatcherHandle,
+{
     pub fn new(
         id: u64,
         cfg: Config,
         logger: Logger,
-        peers: Arc<DashMap<u64, RpcClient>>,
+        peers: HashMap<u64, RpcClient>,
         mailbox_sender: Sender<cluster::Message>,
         mailbox_recv: Receiver<cluster::Message>,
-        enforcer: Arc<RwLock<Enforcer>>,
+        dispatcher: Arc<D>,
     ) -> Result<Self, crate::StorageError> {
         cfg.validate()?;
 
@@ -58,7 +63,7 @@ impl CasbinRaft {
             conf_recv,
             heartbeat: cfg.heartbeat_tick,
             peers,
-            enforcer,
+            dispatcher,
         })
     }
 
@@ -88,6 +93,7 @@ impl CasbinRaft {
     #[allow(irrefutable_let_patterns)]
     pub async fn run(
         mut self,
+        client_tls_config: Option<ClientTlsConfig>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         while let _ = interval(Duration::from_millis(self.heartbeat as u64))
             .tick()
@@ -112,14 +118,23 @@ impl CasbinRaft {
                     let state = self.node.apply_conf_change(&cc)?;
 
                     self.node.mut_store().set_conf_state(state);
-                    let p = self.peers.clone();
+                    let mut p = self.peers.clone();
                     let logger = self.logger.clone();
+                    let client_tls_config = client_tls_config.clone();
                     tokio::spawn(async move {
-                        let uri = Uri::try_from(&ccc.context[..]).unwrap();
-                        let client: RpcClient =
-                            create_client(uri.clone(), Some(logger.clone()))
-                                .await
-                                .unwrap();
+                        let mut uri = String::new();
+                        for a in ccc.context[..].iter() {
+                            //println!(" N: {:x?}", a);
+                            //signature_string.push(a);
+                            write!(uri, "{:02x}", a).unwrap();
+                        }
+                        let client: RpcClient = create_client(
+                            uri.clone(),
+                            Some(logger.clone()),
+                            client_tls_config,
+                        )
+                        .await
+                        .unwrap();
                         p.insert(ccc.node_id, client);
                         slog::info!(
                             logger,
@@ -177,6 +192,8 @@ impl CasbinRaft {
         if let Some(hs) = ready.hs() {
             slog::info!(self.logger, "HS?: {:?}", hs);
             self.node.mut_store().set_hard_state(hs.commit, hs.term);
+            // self.node.mut_store().state.hard_state = (*hs).clone();
+            // self.node.mut_store().commit()?;
         }
 
         for mut msg in ready.messages.drain(..) {
@@ -212,7 +229,7 @@ impl CasbinRaft {
                     .merge(Bytes::from(entry.data.clone()))
                     .unwrap();
 
-                if let Err(error) = self.apply(internal_raft_message) {
+                if let Err(error) = self.apply(internal_raft_message).await {
                     slog::error!(self.logger, "Unable to apply entry. {:?}", error);
                     // TODO: return an error to the user
                 }
@@ -276,70 +293,39 @@ impl CasbinRaft {
         Ok(())
     }
 
-    pub fn apply(
+    pub async fn apply(
         &mut self,
         request: InternalRaftMessage,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        if let Some(policy_request) = request.policy {
-            let op = PolicyRequestType::from_i32(policy_request.op);
+        let dispatcher = Arc::clone(&self.dispatcher);
+        let mut enf = dispatcher.get_enforcer()?;
+        if let Some(inner) = request.policy {
+            let op = PolicyRequestType::from_i32(inner.op);
             match op {
                 Some(PolicyRequestType::AddPolicy) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    let policy = policy_request.params;
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.add_policy(policy).await.unwrap();
-                    });
+                    let params = inner.params;
+                    enf.add_policy(params).await?;
                 }
                 Some(PolicyRequestType::RemovePolicy) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    let policy = policy_request.params;
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.remove_policy(policy).await.unwrap();
-                    });
+                    let params = inner.params;
+                    enf.remove_policy(params).await?;
                 }
                 Some(PolicyRequestType::AddPolicies) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    let policy = policy_request
-                        .paramss
-                        .into_iter()
-                        .map(|x| x.param)
-                        .collect();
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.add_policies(policy).await.unwrap();
-                    });
+                    let paramss = inner.paramss.into_iter().map(|x| x.param).collect();
+                    enf.add_policies(paramss).await?;
                 }
                 Some(PolicyRequestType::RemovePolicies) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    let policy = policy_request
-                        .paramss
-                        .into_iter()
-                        .map(|x| x.param)
-                        .collect();
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.remove_policies(policy).await.unwrap();
-                    });
+                    let paramss = inner.paramss.into_iter().map(|x| x.param).collect();
+                    enf.remove_policies(paramss).await?;
                 }
                 Some(PolicyRequestType::RemoveFilteredPolicy) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    let field_index = policy_request.field_index;
-                    let field_values = policy_request.field_values;
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.remove_filtered_policy(field_index as usize, field_values)
-                            .await
-                            .unwrap();
-                    });
+                    let field_index = inner.field_index as usize;
+                    let field_values = inner.field_values;
+                    enf.remove_filtered_policy(field_index, field_values)
+                        .await?;
                 }
                 Some(PolicyRequestType::ClearPolicy) => {
-                    let cloned_enforcer = self.enforcer.clone();
-                    Box::pin(async move {
-                        let mut lock = cloned_enforcer.write().await;
-                        lock.clear_policy().await.unwrap();
-                    });
+                    enf.clear_policy();
                 }
                 None => panic!(":-("),
             }

@@ -10,8 +10,6 @@ edition = "2018"
 async-trait  = "^0.1"
 bytes        = "^0.5"
 casbin       = { version = "2.0", default-features = false, features = [ "incremental", "runtime-tokio" ] }
-dashmap      = "^3"
-http         = "^0.2"
 prost        = "^0.6"
 prost-types  = "^0.6"
 prost-derive = "^0.6"
@@ -23,7 +21,7 @@ slog-async   = "2.5"
 slog-term    = "^2.6"
 thiserror    = "^1.0"
 tokio        = { version = "^0.2", features = ["full", "parking_lot"]}
-tonic        = "^0.3"
+tonic        = { version = "^0.3", features = ["tls"]}
 
 [build-dependencies]
 tonic-build       = "^0.3"

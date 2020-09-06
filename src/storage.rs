@@ -35,3 +35,32 @@ impl Storage for MemStorage {
         me.mut_hard_state().clone()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::storage::Snapshot;
+
+    use super::MemStorage;
+
+    fn new_snapshot(index: u64, term: u64, voters: Vec<u64>) -> Snapshot {
+        let mut s = Snapshot::default();
+        s.mut_metadata().index = index;
+        s.mut_metadata().term = term;
+        s.mut_metadata().mut_conf_state().voters = voters;
+        s
+    }
+
+    #[test]
+    fn test_storage_apply_snapshot() {
+        let nodes = vec![1, 2, 3];
+        let storage = MemStorage::new();
+
+        // Apply snapshot successfully
+        let snap = new_snapshot(4, 4, nodes.clone());
+        assert!(storage.wl().apply_snapshot(snap).is_ok());
+
+        // Apply snapshot fails due to StorageError::SnapshotOutOfDate
+        let snap = new_snapshot(3, 3, nodes);
+        assert!(storage.wl().apply_snapshot(snap).is_err());
+    }
+}
