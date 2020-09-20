@@ -157,7 +157,7 @@ where
             enf.add_policy(params).await.unwrap();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 
@@ -173,7 +173,7 @@ where
             enf.remove_policy(params).await.unwrap();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 
@@ -189,7 +189,7 @@ where
             enf.add_policies(paramss).await.unwrap();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 
@@ -205,7 +205,7 @@ where
             enf.remove_policies(paramss).await.unwrap();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 
@@ -224,7 +224,7 @@ where
                 .unwrap();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 
@@ -238,7 +238,7 @@ where
             enf.clear_policy();
             Ok(Response::new(Empty {}))
         } else {
-            Self::error_response(Code::NotFound, "Could not find enforcer".into())
+            Self::error_response(Code::NotFound, "Could not find dispatcher".into())
         }
     }
 }
