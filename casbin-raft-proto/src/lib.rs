@@ -88,7 +88,7 @@ impl From<Message> for eraftpb::Message {
             reject: m.reject,
             context: m.context,
             reject_hint: m.reject_hint,
-            priority: m.priority,
+            priority: 0,
         }
     }
 }

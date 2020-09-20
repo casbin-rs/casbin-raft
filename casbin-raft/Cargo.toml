@@ -1,0 +1,23 @@
+[package]
+name = "casbin-raft-immature"
+version = "0.1.0"
+authors = ["Chojan Shang <psiace@outlook.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait  = "^0.1"
+bytes        = "^0.5"
+casbin       = { version = "2.0", default-features = false, features = [ "incremental", "runtime-tokio" ] }
+casbin-raft-proto = { path = "../casbin-raft-proto"}
+casbin-raft-types = { path = "../casbin-raft-types"}
+prost        = "^0.6"
+raft         = { git = "https://github.com/tikv/raft-rs", default-features = false, features = ["prost-codec"] }
+slog         = "^2.5"
+thiserror    = "^1.0"
+tokio        = { version = "^0.2", features = ["full", "parking_lot"]}
+tonic        = { version = "^0.3", features = ["tls"]}
+
+[build-dependencies]
+tonic-build       = "^0.3"

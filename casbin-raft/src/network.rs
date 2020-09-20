@@ -10,9 +10,8 @@ use tokio::sync::mpsc::*;
 use tonic::transport::{self, Channel, ClientTlsConfig, Server, ServerTlsConfig};
 use tonic::{Code, Request, Response, Status};
 
-use crate::cluster;
-use crate::cluster::*;
-use crate::types::*;
+use casbin_raft_proto::*;
+use casbin_raft_types::*;
 
 pub type RpcClient = client::CasbinServiceClient<Channel>;
 
@@ -46,7 +45,7 @@ where
     D: DispatcherHandle,
 {
     logger: Logger,
-    raft_chan: Sender<cluster::Message>,
+    raft_chan: Sender<casbin_raft_proto::Message>,
     raft_conf: Sender<raft::prelude::ConfChange>,
     dispatcher: Arc<D>,
 }
@@ -59,7 +58,7 @@ where
         addr: SocketAddr,
         logger: Logger,
         server_tls_config: Option<ServerTlsConfig>,
-        raft_chan: Sender<cluster::Message>,
+        raft_chan: Sender<casbin_raft_proto::Message>,
         raft_conf: Sender<raft::prelude::ConfChange>,
         dispatcher: Arc<D>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -114,7 +113,8 @@ where
         request: Request<RaftRequest>,
     ) -> Result<Response<RaftReply>, Status> {
         let RaftRequest { message, .. } = request.into_inner();
-        let msg: cluster::Message = Message::decode(Bytes::from(message)).unwrap();
+        let msg: casbin_raft_proto::Message =
+            Message::decode(Bytes::from(message)).unwrap();
         slog::debug!(self.logger, "MSG = {:?}", msg);
         let mut chan = self.raft_chan.clone();
         if let Err(err) = chan.send(msg).await {
@@ -152,7 +152,7 @@ where
         info!(self.logger, "Request From: {:?}", request);
         let inner = request.into_inner();
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             let params = inner.params;
             enf.add_policy(params).await.unwrap();
             Ok(Response::new(Empty {}))
@@ -168,7 +168,7 @@ where
         info!(self.logger, "Request From: {:?}", request);
         let inner = request.into_inner();
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             let params = inner.params;
             enf.remove_policy(params).await.unwrap();
             Ok(Response::new(Empty {}))
@@ -184,7 +184,7 @@ where
         info!(self.logger, "Request From: {:?}", request);
         let inner = request.into_inner();
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             let paramss = inner.paramss.into_iter().map(|x| x.param).collect();
             enf.add_policies(paramss).await.unwrap();
             Ok(Response::new(Empty {}))
@@ -200,7 +200,7 @@ where
         info!(self.logger, "Request From: {:?}", request);
         let inner = request.into_inner();
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             let paramss = inner.paramss.into_iter().map(|x| x.param).collect();
             enf.remove_policies(paramss).await.unwrap();
             Ok(Response::new(Empty {}))
@@ -216,7 +216,7 @@ where
         info!(self.logger, "Request From: {:?}", request);
         let inner = request.into_inner();
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             let field_index = inner.field_index as usize;
             let field_values = inner.field_values;
             enf.remove_filtered_policy(field_index, field_values)
@@ -234,7 +234,7 @@ where
     ) -> Result<Response<Empty>, Status> {
         info!(self.logger, "Request From: {:?}", request);
         let dispatcher = Arc::clone(&self.dispatcher);
-        if let Ok(mut enf) = dispatcher.get_enforcer() {
+        if let Ok(mut enf) = dispatcher.get_dispatcher() {
             enf.clear_policy();
             Ok(Response::new(Empty {}))
         } else {

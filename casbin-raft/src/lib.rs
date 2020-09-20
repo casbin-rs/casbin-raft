@@ -1,21 +1,29 @@
+#[macro_use]
+extern crate slog;
+
+pub mod network;
+pub mod node;
+
+pub type StorageError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
 use raft::prelude::*;
 pub use raft::storage::MemStorage;
 
 pub trait Storage: raft::storage::Storage {
-    fn append(&self, entries: &[Entry]) -> Result<(), crate::StorageError>;
-    fn apply_snapshot(&self, snapshot: Snapshot) -> Result<(), crate::StorageError>;
+    fn append(&self, entries: &[Entry]) -> Result<(), StorageError>;
+    fn apply_snapshot(&self, snapshot: Snapshot) -> Result<(), StorageError>;
     fn set_conf_state(&self, cs: ConfState);
     fn set_hard_state(&self, commit: u64, term: u64);
     fn hard_state(&self) -> HardState;
 }
 
 impl Storage for MemStorage {
-    fn append(&self, entries: &[Entry]) -> Result<(), crate::StorageError> {
+    fn append(&self, entries: &[Entry]) -> Result<(), StorageError> {
         self.wl().append(entries)?;
         Ok(())
     }
 
-    fn apply_snapshot(&self, snapshot: Snapshot) -> Result<(), crate::StorageError> {
+    fn apply_snapshot(&self, snapshot: Snapshot) -> Result<(), StorageError> {
         self.wl().apply_snapshot(snapshot)?;
         Ok(())
     }
@@ -38,7 +46,7 @@ impl Storage for MemStorage {
 
 #[cfg(test)]
 mod test {
-    use crate::storage::Snapshot;
+    use crate::Snapshot;
 
     use super::MemStorage;
 

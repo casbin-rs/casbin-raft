@@ -26,6 +26,7 @@ jobs:
       run: |
         cargo check --all
         cargo test --all --no-fail-fast
+
   check_formatting:
     name: "Check Formatting"
     runs-on: ubuntu-latest

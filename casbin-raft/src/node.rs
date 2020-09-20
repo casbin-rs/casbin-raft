@@ -13,10 +13,11 @@ use tokio::time::*;
 use tonic::transport::ClientTlsConfig;
 use tonic::Request;
 
-use crate::cluster::{self, InternalRaftMessage, PolicyRequestType, RaftRequest};
+use casbin_raft_proto::{self, InternalRaftMessage, PolicyRequestType, RaftRequest};
+use casbin_raft_types::*;
+
 use crate::network::{create_client, RpcClient};
-use crate::storage::{MemStorage, Storage};
-use crate::types::*;
+use crate::{MemStorage, Storage};
 
 pub struct CasbinRaft<D>
 where
@@ -25,8 +26,8 @@ where
     pub id: u64,
     pub node: RawNode<MemStorage>,
     pub logger: Logger,
-    pub mailbox_sender: Sender<cluster::Message>,
-    pub mailbox_recv: Receiver<cluster::Message>,
+    pub mailbox_sender: Sender<casbin_raft_proto::Message>,
+    pub mailbox_recv: Receiver<casbin_raft_proto::Message>,
     pub conf_sender: Sender<ConfChange>,
     pub conf_recv: Receiver<ConfChange>,
     pub peers: HashMap<u64, RpcClient>,
@@ -43,8 +44,8 @@ where
         cfg: Config,
         logger: Logger,
         peers: HashMap<u64, RpcClient>,
-        mailbox_sender: Sender<cluster::Message>,
-        mailbox_recv: Receiver<cluster::Message>,
+        mailbox_sender: Sender<casbin_raft_proto::Message>,
+        mailbox_recv: Receiver<casbin_raft_proto::Message>,
         dispatcher: Arc<D>,
     ) -> Result<Self, crate::StorageError> {
         cfg.validate()?;
@@ -254,7 +255,7 @@ where
 
     pub async fn send(
         &mut self,
-        msg: cluster::Message,
+        msg: casbin_raft_proto::Message,
     ) -> Result<(), crate::StorageError> {
         slog::info!(self.logger, "SEND = {:?}", msg);
         self.mailbox_sender.send(msg).await.unwrap();
@@ -298,7 +299,7 @@ where
         request: InternalRaftMessage,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let dispatcher = Arc::clone(&self.dispatcher);
-        let mut enf = dispatcher.get_enforcer()?;
+        let mut enf = dispatcher.get_dispatcher()?;
         if let Some(inner) = request.policy {
             let op = PolicyRequestType::from_i32(inner.op);
             match op {

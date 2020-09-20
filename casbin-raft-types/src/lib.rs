@@ -1,3 +1,5 @@
+mod error;
+
 use casbin::prelude::Enforcer;
 
 type Result<T> = std::result::Result<T, crate::error::Error>;
@@ -5,7 +7,7 @@ type Result<T> = std::result::Result<T, crate::error::Error>;
 /// Determines whether or not the enforcer is local to this machine or if the handle has to go to another
 /// node in order to get it's data.
 #[derive(Debug)]
-pub enum EnforcerLocation {
+pub enum DispatcherLocation {
     /// This enforcer is in local storage on this node
     LOCAL,
     /// Casbin-Raft has to make a request to another server for this enforcer
@@ -35,11 +37,11 @@ pub trait DispatcherHandle: Send + Sync + 'static {
     type Remote: Dispatcher + Send + Sync;
 
     /// Return a handle to a single enforcer
-    fn get_enforcer(&self) -> Result<Self::Local>;
+    fn get_dispatcher(&self) -> Result<Self::Local>;
     /// Determine if an enforcer exists locally
     fn exists(&self) -> bool;
     /// Return a handle to a single remote enforcer
-    async fn get_remote_enforcer(&self, id: u64) -> Result<Self::Remote>;
+    async fn get_remote_dispatcher(&self, id: u64) -> Result<Self::Remote>;
     /// Determine if an enforcer exists remotely
     async fn remote_exists(&self, id: u64) -> bool;
 
