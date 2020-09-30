@@ -1,5 +1,5 @@
 [package]
-name = "casbin-raft-immature"
+name = "casbin-raft"
 version = "0.1.0"
 authors = ["Chojan Shang <psiace@outlook.com>"]
 edition = "2018"
